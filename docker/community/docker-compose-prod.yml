@@ -46,9 +46,33 @@ services:
   #     retries: 5
   #     start_period: 60s
 
+  redis-queue:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6380:6379
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory', '1gb']
+    hostname: redis-queue
+    network_mode: bridge
+    volumes:
+      - redis-queue-data:/data
+
+  redis-cache:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6381:6379
+    command: ['redis-server', '--appendonly', 'no', '--maxmemory', '1gb', '--maxmemory-policy', 'allkeys-lru']
+    hostname: redis-cache
+    network_mode: bridge
+    volumes:
+      - redis-cache-data:/data
+
   api:
     image: 'ghcr.io/novuhq/novu/api:2.0.0'
-    # depends_on:
+    depends_on:
+      - redis-queue
+      - redis-cache
     #   mongodb:
     #     condition: service_healthy
     #   redis:
@@ -93,7 +117,9 @@ services:
 
   worker:
     image: 'ghcr.io/novuhq/novu/worker:2.0.0'
-    # depends_on:
+    depends_on:
+      - redis-queue
+      - redis-cache
     #   mongodb:
     #     condition: service_healthy
     #   redis:
@@ -131,7 +157,9 @@ services:
 
   ws:
     image: 'ghcr.io/novuhq/novu/ws:2.0.0'
-    # depends_on:
+    depends_on:
+      - redis-queue
+      - redis-cache
     #   mongodb:
     #     condition: service_healthy
     #   redis:
@@ -191,3 +219,7 @@ services:
       start_period: 10s
 # volumes:
 #   mongodb: ~
+
+volumes:
+  redis-queue-data:
+  redis-cache-data:
